@@ -83,47 +83,86 @@ void generate_field(int size, struct position* positions)
     return;
 }
 
+
+
+char is_new_position(struct position* positions, int count, int x, int y)
+{
+    for(int i = 0; i < count; i++) {
+        if(positions[i].x == x && positions[i].y == y) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+
+
+
 void generate_positions(int size, struct position* positions)
 {
     //int detect = 0;
     time_t t;
     srand((unsigned) time(&t));
 
+    int x, y;
     for(int i = 0; i<4; i++){
-        back: /*detect = 0*/;
-        positions[i].x = (rand()%size) + 1;
-        positions[i].y = (rand()%size) + 1;
+        x = (rand()%size) + 1;
+        y = (rand()%size) + 1;
+        if(i > 0 && (is_new_position(&positions, (i-1), x, y) == 0)) {
+            i--;
+            continue;
+        }
+        positions[i].x = x;
+        positions[i].y = y;
     }
 
-    for(int i = 0; i<4; i++) {
-        for(int j = 0; j<4; j++){
-            if(i == j){
-                j++;
-            }
-            if(positions[i].x == positions[j].x && positions[i].y == positions[j].y){
-                goto back;
-                //detect = 1;
-                //continue;
+    int is_near_king;
+    while(1) {
+        is_near_king = 0;
+        for(int i = 2; i<4; i++){
+            if(positions[0].x == positions[i].x || positions[0].y == positions[i].y) {
+                positions[0].x = (rand()%size) + 1;
+                positions[0].y = (rand()%size) + 1;
+                is_near_king = 1;
+                break;
             }
         }
-
-        //if(detect == 1){
-        //    goto back;
-        //}
+        if(is_near_king == 0) {
+            break;
+        }
     }
 
-    while(positions[0].x == positions[2].x || positions[0].x == positions[3].x || positions[0].y == positions[2].y || positions[0].y == positions[3].y) {
+    /*while(positions[0].x == positions[2].x || positions[0].x == positions[3].x || positions[0].y == positions[2].y || positions[0].y == positions[3].y) { //KE
         positions[0].x = (rand()%size) + 1;
         positions[0].y = (rand()%size) + 1;
+        int counter_for_KF = 1;
+        while(positions[0].x == positions[counter_for_KF].x && positions[0].y == positions[counter_for_KF].y) {
+            if(counter_for_KF != 0) {
+                positions[0].x = (rand()%size) + 1;
+                positions[0].y = (rand()%size) + 1;
+            }
+            counter_for_KF++;
+            if(counter_for_KF > 3) {
+                counter_for_KF = 0;
+            }
+        }
     }
-    while(positions[0].y + 1 == positions[1].y || positions[0].y - 1 == positions[1].y ||
+    */
+
+    while(positions[0].y + 1 == positions[1].y || positions[0].y - 1 == positions[1].y || //KE
           (positions[0].y + 1 == positions[1].y && positions[0].x + 1 == positions[1].x) ||
           (positions[0].y - 1 == positions[1].y && positions[0].x - 1 == positions[1].x) ||
          (positions[0].y - 1 == positions[1].y && positions[0].x + 1 == positions[1].x) ||
           (positions[0].y + 1 == positions[1].y && positions[0].x - 1 == positions[1].x) ||
           positions[0].x + 1 == positions[1].x || positions[0].x - 1 == positions[1].x) {
+        do {
         positions[1].x = (rand()%size) + 1;
         positions[1].y = (rand()%size) + 1;
+        } while((positions[1].x == positions[0].x && positions[1].y == positions[0].y) ||
+                (positions[1].x == positions[2].x && positions[1].y == positions[2].y) ||
+                (positions[1].x == positions[3].x && positions[1].y == positions[3].y));
+        //positions[1].x = (rand()%size) + 1;
+        //positions[1].y = (rand()%size) + 1;
     }
 
     /*for(int i = 0; i<4; i++) {
@@ -223,7 +262,7 @@ void is_enemy_check_or_checkmate(int size, struct position* positions, int* resu
 void change_position(int size, struct position* positions)
 {
     char piece[3] = {"NO"};
-    char pos[3];
+    char pos[4];
     int is_valid_position = 0;
     printf("\nYour turn!\nChoose what piece to move by typing:\n KF for King\n R1 for Rook 1\n R2 for Rook 2\n");
 
@@ -233,6 +272,7 @@ void change_position(int size, struct position* positions)
         printf("Invalid piece! Try again: ");
         scanf("%s", &piece);
     }
+    printf("PIECE: %s", piece);
 
     FILE *replay;
     replay = fopen("replay.txt", "a+");
@@ -242,91 +282,111 @@ void change_position(int size, struct position* positions)
 
     printf("Choose your position (Letters first, for example: A1, C5, F2): ");
     scanf("%s", &pos);
+    int pos_x = pos[0] - 64;
+
+    char str[3];
+
+    int i;
+    for(i = 1; i < strlen(pos); i++) {
+        str[i-1] = pos[i];
+    }
+    str[i] = '\0';
+    int pos_y = atoi(str);
 
     while(is_valid_position == 0){
+        printf("PIECE: %s", piece);
         if(strcmp(piece, positions[1].figure) == 0)
         {
-            if(atoi(&pos[1])>size){
+            printf("position: %s", positions[1].figure);
+            if(pos_y>size){
+                is_valid_position = 0;
+                printf("\nUnknown number.");
+            }
+
+            else if(pos_x > size){
+                is_valid_position = 0;
+                printf("\nUnknown letter.");
+            }
+
+            else if((pos_x>positions[1].x+1 || pos_x<positions[1].x-1) || (pos_y>positions[1].y+1 || pos_y<positions[1].y-1) ||
+                    (positions[0].x+1 == pos_x && positions[0].y+1 == pos_y) || (positions[0].x-1 == pos_x && positions[0].y-1 == pos_y) ||
+                    (positions[0].x+1 == pos_x && positions[0].y-1 == pos_y) || (positions[0].x-1 == pos_x && positions[0].y+1 == pos_y) ||
+                    (positions[0].x+1 == pos_x && positions[0].y == pos_y) || (positions[0].x == pos_x && positions[0].y+1 == pos_y) ||
+                    (positions[0].x-1 == pos_x && positions[0].y == pos_y) || (positions[0].x == pos_x && positions[0].y-1 == pos_y)){
                 is_valid_position = 0;
             }
 
-            else if((pos[0] - 64)>size){
-                is_valid_position = 0;
-            }
-
-            else if(((pos[0] - 64)>positions[1].x+1 || (pos[0] - 64)<positions[1].x-1) || (atoi(&pos[1])>positions[1].y+1 || atoi(&pos[1])<positions[1].y-1) ||
-                    (positions[0].x+1 == (pos[0] - 64) && positions[0].y+1 == atoi(&pos[1])) || (positions[0].x-1 == (pos[0] - 64) && positions[0].y-1 == atoi(&pos[1])) ||
-                    (positions[0].x+1 == (pos[0] - 64) && positions[0].y-1 == atoi(&pos[1])) || (positions[0].x-1 == (pos[0] - 64) && positions[0].y+1 == atoi(&pos[1])) ||
-                    (positions[0].x+1 == (pos[0] - 64) && positions[0].y == atoi(&pos[1])) || (positions[0].x == (pos[0] - 64) && positions[0].y+1 == atoi(&pos[1])) ||
-                    (positions[0].x-1 == (pos[0] - 64) && positions[0].y == atoi(&pos[1])) || (positions[0].x == (pos[0] - 64) && positions[0].y-1 == atoi(&pos[1]))){
-                is_valid_position = 0;
-            }
-
-            else if((positions[2].x == (pos[0] - 64) && positions[2].y == atoi(&pos[1])) || (positions[3].x == (pos[0] - 64) && positions[3].y == atoi(&pos[1]))) {
+            else if((positions[2].x == pos_x && positions[2].y == pos_y) || (positions[3].x == pos_x) && positions[3].y == pos_y) {
                 printf("Position occupied!\n");
                 is_valid_position = 0;
             }
 
             else{
                 is_valid_position = 1;
-                positions[1].x = pos[0] - 64;
-                positions[1].y = atoi(&pos[1]);
+                positions[1].x = pos_x;
+                positions[1].y = pos_y;
                 positions[1].moves++;
             }
         }
 
         else if(strcmp(piece, positions[2].figure) == 0)
         {
-            if(atoi(&pos[1])>size){
+            printf("position: %s", positions[1].figure);
+            if(pos_y>size){
+                is_valid_position = 0;
+                printf("\nUnknown number.");
+            }
+
+            else if(pos_x>size){
+                is_valid_position = 0;
+                printf("\nUnknown letter.");
+            }
+
+            else if((pos_x>positions[2].x && pos_y>positions[2].y) || (pos_x<positions[2].x && pos_y<positions[2].y) ||
+                    (pos_x<positions[2].x && pos_y>positions[2].y) || (pos_x>positions[2].x && pos_y<positions[2].y)){
                 is_valid_position = 0;
             }
 
-            else if((pos[0] - 64)>size){
-                is_valid_position = 0;
-            }
-
-            else if(((pos[0] - 64)>positions[2].x && atoi(&pos[1])>positions[2].y) || ((pos[0] - 64)<positions[2].x && atoi(&pos[1])<positions[2].y) ||
-                    ((pos[0] - 64)<positions[2].x && atoi(&pos[1])>positions[2].y) || ((pos[0] - 64)>positions[2].x && atoi(&pos[1])<positions[2].y)){
-                is_valid_position = 0;
-            }
-
-            else if((positions[1].x == (pos[0] - 64) && positions[1].y == atoi(&pos[1])) || (positions[3].x == (pos[0] - 64) && positions[3].y == atoi(&pos[1]))) {
+            else if((positions[1].x == pos_x && positions[1].y == pos_y) || (positions[3].x == pos_x && positions[3].y == pos_y)) {
                 printf("Position occupied!\n");
                 is_valid_position = 0;
             }
 
             else{
                 is_valid_position = 1;
-                positions[2].x = pos[0] - 64;
-                positions[2].y = atoi(&pos[1]);
+                positions[2].x = pos_x;
+                positions[2].y = pos_y;
                 positions[2].moves++;
             }
         }
 
         else if(strcmp(piece, positions[3].figure) == 0)
         {
-            if(atoi(&pos[1])>size){
+            printf("position: %s", positions[1].figure);
+            if(pos_y>size){
+                printf("\nUnknown number.");
                 is_valid_position = 0;
             }
 
-            else if((pos[0] - 64)>size){
+            else if(pos_x>size){
+                printf("\nUnknown letter.");
                 is_valid_position = 0;
             }
 
-            else if(((pos[0] - 64)>positions[3].x && atoi(&pos[1])>positions[3].y) || ((pos[0] - 64)<positions[3].x && atoi(&pos[1])<positions[3].y) ||
-                    ((pos[0] - 64)<positions[3].x && atoi(&pos[1])>positions[3].y) || ((pos[0] - 64)>positions[3].x && atoi(&pos[1])<positions[3].y)){
+            else if((pos_x>positions[3].x && pos_y>positions[3].y) || (pos_x<positions[3].x && pos_y<positions[3].y) ||
+                    (pos_x<positions[3].x && pos_y>positions[3].y) || (pos_x>positions[3].x && pos_y<positions[3].y)){
                 is_valid_position = 0;
             }
 
-            else if((positions[1].x == (pos[0] - 64) && positions[1].y == atoi(&pos[1])) || (positions[2].x == (pos[0] - 64) && positions[2].y == atoi(&pos[1]))) {
+            else if((positions[1].x == pos_x && positions[1].y == pos_y) || (positions[2].x == pos_x && positions[2].y == pos_y)) {
                 printf("Position occupied!\n");
                 is_valid_position = 0;
             }
 
             else{
                 is_valid_position = 1;
-                positions[3].x = pos[0] - 64;
-                positions[3].y = atoi(&pos[1]);
+                positions[3].x = pos_x;
+                positions[3].y = pos_y;
                 positions[3].moves++;
             }
         }
@@ -352,7 +412,7 @@ void change_position(int size, struct position* positions)
 
 
 
-void replay_change_position(int size, struct position* positions, struct array* pieces, struct array* positions_pieces)
+/*void replay_change_position(int size, struct position* positions, struct array* pieces, struct array* positions_pieces)
 {
     char piece[3] = {"NO"};
     char pos[3];
@@ -463,7 +523,7 @@ void replay_change_position(int size, struct position* positions, struct array* 
     generate_field(size, positions);
 
     return;
-}
+}*/
 
 
 
